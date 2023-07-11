@@ -1,0 +1,23 @@
+﻿<link href="~/css/bootstrap.css" rel="stylesheet" />
+
+@if (User.Identity.IsAuthenticated)
+{
+    @if(User.Identity !=null)
+    {
+        <div class="btn-group pull-right" style="width: 650px; font-size:20px;">
+            <a class="navbar-brand" href="~/">В начало</a>
+            <a class="navbar-brand" href="/MyDefault/AddContact">Добавить контакт</a>
+            <a class="navbar-brand" herf="#">@User.Identity.Name в системе</a>
+            <form method="post" asp-controller="Account" asp-action="Logout" id="logoutform" asp-antiforgery="true">
+                <a class="navbar-brand" href="#" onclick="document.getElementById('logoutform').submit()">Выход</a>
+            </form>
+        </div>
+    }
+}
+else
+{
+    <div class="btn-group pull-right" style="font-size:20px;">
+        <a class="navbar-brand" href="/Account/Login">Вход</a>
+        <a class="navbar-brand" href="/Account/Register">Регистрация </a>
+    </div>
+}
