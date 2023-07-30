@@ -3,14 +3,14 @@
 @using Project19.AuthContactApp;
 @inject UserManager<User> userManager
 @inject RoleManager<IdentityRole> roleManager
+@using Project19.Data;
+@using Project19.Controllers;
 
 @{
-    var userId = userManager.GetUserId(this.User);
-    var user = await userManager.FindByIdAsync(userId);
     bool isAdmin;
-    if(user !=null)
+    if(ContactDataApi.roleClaimValue == "Admin")
     {
-        isAdmin = await userManager.IsInRoleAsync(user, "Admin");
+        isAdmin = true;
     }
     else
     {
@@ -53,10 +53,8 @@
         </tr>
     </thead>
     <tbody>
-        @if (User.Identity.IsAuthenticated)
+        @if (AccountController.isAuth)
         {
-            @if (User.Identity != null)
-            {   
                 @if(isAdmin)
                 {
                     @foreach (Contact contact in Model)
@@ -105,8 +103,6 @@
                             </td>
                         </tr>
                     }
-                }
-                
             }
         }
         else

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "RbRzoMVL9nQ8mMQ9EXdbOsdLxiw/ijff1p39nKXCoFD884iS4GJHA03sYi8OML9PTTlMSM+xdkp1i6dcrTwQHA==",
+  "dgSpecHash": "iBLlECpa7DgZ27IlqFkrwqztaI1YrfAUMNkO79MoWcBOLNYUZeVvdjQFm/OUIT+OWXgM2BkzUIHGVfL3H/D9Xg==",
   "success": true,
-  "projectFilePath": "F:\\C#\\Project21View\\Project19\\Project19.csproj",
+  "projectFilePath": "F:\\C#\\Project21WebTest\\Project21Web\\Project19\\Project19.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Drobyshev\\.nuget\\packages\\azure.core\\1.24.0\\azure.core.1.24.0.nupkg.sha512",
     "C:\\Users\\Drobyshev\\.nuget\\packages\\azure.identity\\1.6.0\\azure.identity.1.6.0.nupkg.sha512",

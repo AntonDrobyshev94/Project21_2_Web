@@ -1,15 +1,15 @@
 {
   "Files": [
     {
-      "Id": "F:\\C#\\Project21View\\Project19\\wwwroot\\css\\bootstrap.css",
+      "Id": "F:\\C#\\Project21WebTest\\Project19\\wwwroot\\css\\bootstrap.css",
       "PackagePath": "staticwebassets\\css\\bootstrap.css"
     },
     {
-      "Id": "F:\\C#\\Project21View\\Project19\\wwwroot\\css\\ownStylecss.css",
+      "Id": "F:\\C#\\Project21WebTest\\Project19\\wwwroot\\css\\ownStylecss.css",
       "PackagePath": "staticwebassets\\css\\ownStylecss.css"
     },
     {
-      "Id": "F:\\C#\\Project21View\\Project19\\wwwroot\\css\\stylecss.css",
+      "Id": "F:\\C#\\Project21WebTest\\Project19\\wwwroot\\css\\stylecss.css",
       "PackagePath": "staticwebassets\\css\\stylecss.css"
     },
     {

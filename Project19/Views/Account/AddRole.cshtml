@@ -14,7 +14,7 @@
 <span style ="font-size:25px">Добавление новой роли:</span>
 <form method="post" action="~/Account/CreateNewRole">
     <b></b>
-    <input type="text" style="font-size:20px" name="roleName" value="Название роли" />
+    <input type="text" style="font-size:20px" name="roleNameString" value="Название роли" />
     <button type="submit" class="btn">Создать новую роль</button>
     @if (TempData["RoleCreateMessage"] != null && TempData["IsCreate"]!=null)
     {
@@ -27,8 +27,8 @@
 <span style="font-size:25px">Присвоение роли пользователю:</span>
 <form method="post" action="~/Account/AddUserRole">
     <b></b>
-    <input type="text" style="font-size:20px" name="roleName" value="Название роли" />
-    <input type="text" style="font-size:20px" name="userName" value="Имя пользователя" />
+    <input type="text" style="font-size:20px" name="roleNameString" value="Название роли" />
+    <input type="text" style="font-size:20px" name="userNameString" value="Имя пользователя" />
     <button type="submit" class="btn">Присвоить роль пользователю</button>
     
     @if (TempData["SuccessMessage"] !=null)
@@ -46,7 +46,6 @@
         {
             <div class="alert @((bool)TempData["isUserAvailable"]? "alert-success" : "alert-danger")">@TempData["UserMessage"]</div>
         }
-
     }
 </form>
 <p></p>
@@ -55,13 +54,13 @@
 <span style="font-size:25px">Удаление роли у пользователя:</span>
 <form method="post" action="~/Account/RemoveUserRole">
     <b></b>
-    <input type="text" style="font-size:20px" name="roleName" value="Название роли" />
-    <input type="text" style="font-size:20px" name="userName" value="Имя пользователя" />
+    <input type="text" style="font-size:20px" name="roleNameString" value="Название роли" />
+    <input type="text" style="font-size:20px" name="userNameString" value="Имя пользователя" />
     <button type="submit" class="btn">Удалить роль пользователя</button>
 
     @if (TempData["DeleteMessage"] != null)
     {
-        <div class="alert alert-success">@TempData["DeleteMessage"]</div>
+        <div class="alert @((bool)TempData["isUserHaveRole"]? "alert-success" : "alert-danger")">@TempData["DeleteMessage"]</div>
     }
     else
     {
@@ -85,7 +84,7 @@
 <h5 style="font-size:25px">Удаление пользователя:</h5>
 <form method="post" style="margin-bottom:30px" action="~/Account/RemoveUser">
     <b></b>
-    <input type="text" style="font-size:20px" name="userName" value="Имя пользователя" />
+    <input type="text" style="font-size:20px" name="userNameString" value="Имя пользователя" />
     <button type="submit" class="btn">Удалить пользователя</button>
     @if (TempData["DeleteUserMessage"] != null && TempData["IsRemoveUser"]!=null)
     {

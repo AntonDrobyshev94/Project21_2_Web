@@ -3,28 +3,37 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Project19.AuthContactApp;
 using Project19.ContextFolder;
+using Project19.Data;
 using Project19.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
+using System.Text;
 
 namespace Project19.Controllers
 {
     public class AccountController : Controller
     {
+        public static bool isAuth = false;
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IContactData _contactData;
 
         public AccountController(UserManager<User> userManager,
                                 SignInManager<User> signInManager,
-                                RoleManager<IdentityRole> roleManager
-                                
+                                RoleManager<IdentityRole> roleManager,
+                                IContactData contactData
                                 )
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
+            _contactData = contactData;
         }
 
         /// <summary>
@@ -39,26 +48,27 @@ namespace Project19.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize(Roles ="Admin")]
         public async Task<IActionResult> AddRole()
         {
-            IList<string> role = new List<string> {"Роль не определена"};
-            var usr = await _userManager.GetUserAsync(this.User);
-            if (usr != null)
+            if (ContactDataApi.roleClaimValue != "Admin")
             {
-                role = await _userManager.GetRolesAsync(usr);
+                return RedirectToAction("Login", "Account");
+            }
+            
+            var userRole = _contactData.GetCurrentRoles();
+            if (userRole.Count <= 0) //проверяем количество ролей
+            {
+                userRole.Add("Роль не определена");
             }
 
-            IEnumerable<User> users = await _userManager.Users.ToListAsync();
-            IEnumerable<User> usersInRoleAdmin = await _userManager.GetUsersInRoleAsync("Admin");
-            
-            UserRegistration userRegistration = new UserRegistration();
-            
-            ViewBag.Role = role;
-            ViewBag.AllUsers = users;
-            ViewBag.Admins = usersInRoleAdmin;
+            var users = _contactData.GetAllUsers();
+            var adminUsers = _contactData.GetAllAdmins();
 
-            return View(userRegistration);
+            ViewBag.Role = userRole;
+            ViewBag.AllUsers = users;
+            ViewBag.Admins = adminUsers;
+
+            return View();
         }
 
         /// <summary>
@@ -73,21 +83,24 @@ namespace Project19.Controllers
         /// <param name="roleName"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateNewRole(string roleName)
+        public async Task<IActionResult> CreateNewRole(string roleNameString)
         {
             bool isCreate = false;
+            string createRoleResponse = string.Empty;
             try
             {
-                if (!string.IsNullOrEmpty(roleName))
+                if (!string.IsNullOrEmpty(roleNameString))
                 {
-                    if (!await _roleManager.RoleExistsAsync(roleName))
+                    RoleModel roleModel = new RoleModel
                     {
-                        await _roleManager.CreateAsync(new IdentityRole()
-                        {
-                            Name = roleName,
-                            NormalizedName = roleName
-                        });
+                        roleName = roleNameString,
+                        userName = ""
+                    };
+
+                    createRoleResponse = _contactData.RoleCreate(roleModel);
+
+                    if (createRoleResponse == "Роль успешно добавлена")
+                    {
                         TempData["RoleCreateMessage"] = "Роль успешно добавлена!";
                         isCreate = true;
                     }
@@ -122,43 +135,56 @@ namespace Project19.Controllers
         /// <param name="userName"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AddUserRole(string roleName, string userName)
+        public async Task<IActionResult> AddUserRole(string roleNameString, string userNameString)
         {
+            string addRoleToUserResponse = string.Empty;
             bool isRoleAvailable = false;
             bool isUserAvailable = false;
-            var user = await _userManager.FindByNameAsync(userName);
-            if (await _roleManager.RoleExistsAsync(roleName))
+            if (!string.IsNullOrEmpty(roleNameString) && !string.IsNullOrEmpty(userNameString))
             {
-                TempData["MessageRole"] = "Роль доступна для добавления";
-                isRoleAvailable = true;
-                if (user !=null)
+                RoleModel roleModel = new RoleModel
                 {
-                    await _userManager.AddToRoleAsync(user, roleName);
+                    roleName = roleNameString,
+                    userName = userNameString
+                };
+                addRoleToUserResponse = _contactData.AddRoleToUser(roleModel);
+                if (addRoleToUserResponse.Contains("Роль успешно добавлена"))
+                {
                     TempData["UserMessage"] = "Пользователь указан верно";
                     TempData["SuccessMessage"] = "Роль успешно добавлена";
+                    TempData["MessageRole"] = "Роль доступна для добавления";
                     isRoleAvailable = true;
                     isUserAvailable = true;
                 }
                 else
                 {
-                    TempData["UserMessage"] = "Пользователь отсутствует";
-                    isUserAvailable= false;
+                    if (addRoleToUserResponse.Contains("Роль доступна для добавления"))
+                    {
+                        TempData["MessageRole"] = "Роль доступна для добавления";
+                        isRoleAvailable = true;
+                    }
+                    else
+                    {
+                        TempData["MessageRole"] = "Ошибка: указанная роль не существует";
+                        isRoleAvailable = false;
+                    }
+                    if (addRoleToUserResponse.Contains("Пользователь указан верно"))
+                    {
+                        TempData["UserMessage"] = "Пользователь указан верно";
+                        isUserAvailable = true;
+                    }
+                    else
+                    {
+                        TempData["UserMessage"] = "Пользователь отсутствует";
+                        isUserAvailable = false;
+                    }
                 }
             }
             else
             {
-                if (user != null)
-                {
-                    TempData["UserMessage"] = "Пользователь указан верно";
-                    isUserAvailable = true;
-                }
-                else
-                {
-                    TempData["UserMessage"] = "Пользователь отсутствует";
-                    isUserAvailable = false;
-                }
-                TempData["MessageRole"] = "Ошибка: указанная роль не существует";
+                TempData["UserMessage"] = "Ошибка при распозновании";
+                isUserAvailable = false;
+                TempData["MessageRole"] = "указанных данных";
                 isRoleAvailable = false;
             }
             TempData["isRoleAvailable"] = isRoleAvailable;
@@ -181,47 +207,68 @@ namespace Project19.Controllers
         /// <param name="userName"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RemoveUserRole(string roleName, string userName)
+        public async Task<IActionResult> RemoveUserRole(string roleNameString, string userNameString)
         {
+            string removeUserRoleResponse = string.Empty;
             bool isRoleAvailable = false;
             bool isUserAvailable = false;
-            var user = await _userManager.FindByNameAsync(userName);
-            if (await _roleManager.RoleExistsAsync(roleName))
+            bool isUserHaveRole = false;
+            if (!string.IsNullOrEmpty(roleNameString) && !string.IsNullOrEmpty(userNameString))
             {
-                TempData["MessageDeleteRole"] = "Роль доступна для удаления";
-                isRoleAvailable = true;
-                if (user != null)
+                RoleModel roleModel = new RoleModel
                 {
-                    await _userManager.RemoveFromRoleAsync(user, roleName);
+                    roleName = roleNameString,
+                    userName = userNameString
+                };
+                removeUserRoleResponse = _contactData.RemoveRoleUser(roleModel);
+                if (removeUserRoleResponse.Contains("Роль успешно удалена"))
+                {
                     TempData["UserDeleteMessage"] = "Пользователь указан верно";
                     TempData["DeleteMessage"] = "Роль успешно удалена";
+                    TempData["MessageDeleteRole"] = "Роль доступна для удаления";
                     isRoleAvailable = true;
                     isUserAvailable = true;
+                    isUserHaveRole = true;
+                }
+                else if (removeUserRoleResponse.Contains("Роль отсутствует у указанного пользователя"))
+                {
+                    TempData["DeleteMessage"] = "Роль отсутствует у указанного пользователя";
+                    isUserHaveRole = false;
                 }
                 else
                 {
-                    TempData["UserDeleteMessage"] = "Пользователь отсутствует";
-                    isUserAvailable = false;
+                    if (removeUserRoleResponse.Contains("Роль доступна для удаления"))
+                    {
+                        TempData["MessageDeleteRole"] = "Роль доступна для удаления";
+                        isRoleAvailable = true;
+                    }
+                    else
+                    {
+                        TempData["MessageDeleteRole"] = "Ошибка: указанная роль не существует";
+                        isRoleAvailable = false;
+                    }
+                    if (removeUserRoleResponse.Contains("Пользователь указан верно"))
+                    {
+                        TempData["UserDeleteMessage"] = "Пользователь указан верно";
+                        isUserAvailable = true;
+                    }
+                    else
+                    {
+                        TempData["UserDeleteMessage"] = "Пользователь отсутствует";
+                        isUserAvailable = false;
+                    }
                 }
             }
             else
             {
-                if (user != null)
-                {
-                    TempData["UserDeleteMessage"] = "Пользователь указан верно";
-                    isUserAvailable = true;
-                }
-                else
-                {
-                    TempData["UserDeleteMessage"] = "Пользователь отсутствует";
-                    isUserAvailable = false;
-                }
-                TempData["MessageDeleteRole"] = "Ошибка: указанная роль не существует";
+                TempData["MessageDeleteRole"] = "Ошибка при распозновании";
                 isRoleAvailable = false;
+                TempData["UserDeleteMessage"] = "указанных данных";
+                isUserAvailable = false;
             }
             TempData["isRoleAvailable"] = isRoleAvailable;
             TempData["isUserAvailable"] = isUserAvailable;
+            TempData["isUserHaveRole"] = isUserHaveRole;
             return RedirectToAction("AddRole", "Account");
         }
 
@@ -239,20 +286,37 @@ namespace Project19.Controllers
         /// <param name="userName"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RemoveUser(string userName)
+        public async Task<IActionResult> RemoveUser(string userNameString)
         {
+            string removeUserResponse = string.Empty;
             bool isRemoveUser;
-            var user = await _userManager.FindByNameAsync(userName);
-            if (user != null)
+            if (!string.IsNullOrEmpty(userNameString))
             {
-                await _userManager.DeleteAsync(user);
-                TempData["DeleteUserMessage"] = "Пользователь успешно удален";
-                isRemoveUser = true;
+                RoleModel roleModel = new RoleModel
+                {
+                    roleName = "",
+                    userName = userNameString
+                };
+                removeUserResponse = _contactData.UserRemove(roleModel);
+                if (removeUserResponse.Contains("Пользователь успешно удален"))
+                {
+                    TempData["DeleteUserMessage"] = "Пользователь успешно удален";
+                    isRemoveUser = true;
+                }
+                else if (removeUserResponse.Contains("Пользователь отсутствует"))
+                {
+                    TempData["DeleteUserMessage"] = "Пользователь отсутствует";
+                    isRemoveUser = false;
+                }
+                else
+                {
+                    TempData["DeleteUserMessage"] = "Ошибка";
+                    isRemoveUser = false;
+                }  
             }
             else
             {
-                TempData["DeleteUserMessage"] = "Пользователь отсутствует";
+                TempData["DeleteUserMessage"] = "Ошибка";
                 isRemoveUser = false;
             }
             TempData["IsRemoveUser"] = isRemoveUser;
@@ -277,41 +341,30 @@ namespace Project19.Controllers
             });
         }
 
-        /// <summary>
-        /// Асинхронный post запрос, в результате
-        /// которого происходит обработка события входа
-        /// в аккаунт. Если модель UserLogin исправна,
-        /// то происходит отработка метода 
-        /// PasswordSignInAsync, который принимает логин и
-        /// пароль, указанный в модели представления.
-        /// Если результат входа успешный, то происходит
-        /// возврат на страницу, на которую пытался войти
-        /// пользователь (при возможности).
-        /// </summary>
-        /// <param name="model"></param>
-        /// <returns></returns>
-        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(UserLogin model)
         {
             if (ModelState.IsValid)
             {
-                if (model.LoginProp != null)
+                if (model.LoginProp != null && model.Password != null)
                 {
-                    var loginResult = await _signInManager.PasswordSignInAsync(model.LoginProp,
-                    model.Password,
-                    false,
-                    lockoutOnFailure: false);
-
-                    if (loginResult.Succeeded)
+                    string loginProp = model.LoginProp;
+                    string password = model.Password;
+                    UserLoginProp userLogin = new UserLoginProp()
                     {
-                        if (Url.IsLocalUrl(model.ReturnUrl))
-                        {
-                            return Redirect(model.ReturnUrl);  
-                        }
+                        UserName = loginProp,
+                        Password = password
+                    };
+                    isAuth = _contactData.IsLogin(userLogin);
+                    if (isAuth)
+                    {
                         return RedirectToAction("Index", "MyDefault");
                     }
+                    else
+                    {
+                        return RedirectToAction("Login", "Account");
+                    }
+                }
             }
-        }
             ModelState.AddModelError("", "Пользователь не найден");
             return View(model);
         }
@@ -345,24 +398,18 @@ namespace Project19.Controllers
             {
                 if (model.LoginProp != null)
                 {
-                    var user = new User { UserName = model.LoginProp };
-                    var createResult = await _userManager.CreateAsync(user, model.Password);
+                    isAuth = _contactData.IsRegister(model);
 
-                    if (createResult.Succeeded)
+                    if (isAuth)
                     {
-                        await _signInManager.SignInAsync(user, false);
                         return RedirectToAction("Index", "MyDefault");
                     }
                     else//иначе
                     {
-                        foreach (var identityError in createResult.Errors)
-                        {
-                            ModelState.AddModelError("", identityError.Description);
-                        }
+                        ModelState.AddModelError("", "Ошибка регистрации");
                     }
                 }
             }
-
             return View(model);
         }
 
@@ -372,7 +419,6 @@ namespace Project19.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize(Roles = "Admin")]
         public IActionResult AdminRegister()
         {
             return View(new UserRegistration());
@@ -389,27 +435,26 @@ namespace Project19.Controllers
         /// <param name="model"></param>
         /// <returns></returns>
         [HttpPost, ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminRegister(UserRegistration model)
         {
+            if (ContactDataApi.roleClaimValue != "Admin")
+            {
+                return RedirectToAction("Login", "Account");
+            }
             bool isSucceed = false;
             if (ModelState.IsValid)
             {
                 if (model.LoginProp != null)
                 {
-                    var user = new User { UserName = model.LoginProp };
-                    var createResult = await _userManager.CreateAsync(user, model.Password);
+                    isSucceed = _contactData.AdministationRegister(model);
 
-                    if (createResult.Succeeded)
+                    if (isSucceed)
                     {
-                        isSucceed = true;
+
                     }
-                    else//иначе
+                    else
                     {
-                        foreach (var identityError in createResult.Errors)
-                        {
-                            ModelState.AddModelError("", identityError.Description);
-                        }
+                        ModelState.AddModelError("", "Ошибка регистрации");
                     }
                 }
             }
@@ -429,8 +474,12 @@ namespace Project19.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            await _signInManager.SignOutAsync();
-            return RedirectToAction("Index", "MyDefault");
+            ContactDataApi.token = string.Empty;
+            ContactDataApi.roleClaimValue = string.Empty;
+            ContactDataApi.userNameValue = string.Empty;
+            ContactDataApi.isAuthenticated = false;
+            isAuth = false;
+            return RedirectToAction("Login", "Account");
         }
     }
 }

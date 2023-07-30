@@ -11,6 +11,7 @@ namespace Project19.Controllers
 {
     public class MyDefaultController : Controller
     {
+        public static string currentToken;
         static int currentId;
 
         private readonly IContactData contactData;
@@ -33,7 +34,6 @@ namespace Project19.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
         public IActionResult AddContact()
         {
             return View();
@@ -54,7 +54,6 @@ namespace Project19.Controllers
         /// <param name="description"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize]
         public IActionResult GetDataFromViewField(string surname, string name,
         string fatherName, string telephoneNumber, string residenceAdress,
         string description)
@@ -83,12 +82,18 @@ namespace Project19.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpGet]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Change(int id)
         {
             Contact concreteContact = await contactData.FindContactById(id);
-            currentId = id;
-            return View(concreteContact);
+            if (concreteContact != null)
+            {
+                currentId = id;
+                return View(concreteContact);
+            }
+            else
+            {
+                return Redirect("~/");
+            }
         }
 
         /// <summary>
@@ -108,7 +113,6 @@ namespace Project19.Controllers
         /// <param name="description"></param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
         public IActionResult ChangeDataFromViewField(string surname, string name,
         string fatherName, string telephoneNumber, string residenceAdress,
         string description)
@@ -130,36 +134,19 @@ namespace Project19.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpGet]
-        [AllowAnonymous]
         public async Task<IActionResult> Details(int id)
         {
             Contact concreteContact = await contactData.FindContactById(id);
-            return View(concreteContact);
+            if (concreteContact != null)
+            {
+                return View(concreteContact);
+            }
+            else
+            {
+                return Redirect("~/");
+            }
+            
         }
-
-        ///// <summary>
-        ///// Асинхронный метод, принимающий переменную int id.
-        ///// Атрибут ActionName("Delete") говорит о том, что
-        ///// данный метод будет вызван в результате action метода
-        ///// "Delete" в представлении Index.cshtml.
-        ///// В данном методе, происходит перебор
-        ///// базы данных на условие совпадения совпадения 
-        ///// параметра ID контакта с принимаемым id, после чего
-        ///// происходит удаление элемента базы данных, сохранение
-        ///// данных методом SaveChangesAsync и возврат на
-        ///// стартовую страницу.
-        ///// в котором происходит 
-        ///// </summary>
-        ///// <param name="id"></param>
-        ///// <returns></returns>
-        //[HttpPost, ActionName("Delete")]
-        //[ValidateAntiForgeryToken]
-        //[Authorize(Roles = "Admin")]
-        //public async Task<IActionResult> DeleteConfirmed(int id)
-        //{
-        //    contactData.DeleteContact(await contactData.FindContactById(id));
-        //    return Redirect("~/");
-        //}
 
         /// <summary>
         /// Асинхронный метод, принимающий переменную int id.
@@ -177,8 +164,6 @@ namespace Project19.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
         public IActionResult DeleteConfirmed(int id)
         {
             contactData.DeleteContact(id);

@@ -16,9 +16,6 @@ namespace Project19
             {
                 var s = scope.ServiceProvider;
                 var c = s.GetRequiredService<DataContext>();
-                DbInitializer.Initialize(c);
-                DbInitializer.InitializeRole(c);
-                DbInitializer.InitializeUserRole(c);
             }
             init.Run();
         }
